@@ -3,9 +3,9 @@ function getTeamsRequest() {
   return fetch("http://localhost:3000/teams-json", {
     method: "GET",
     headers: {
-      "Content-Type": "application/json",
-    },
-  }).then((r) => {
+      "Content-Type": "application/json"
+    }
+  }).then(r => {
     return r.json();
   });
 }
@@ -15,10 +15,10 @@ function createTeamRequest(team) {
   return fetch("http://localhost:3000/teams-json/create", {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
+      "Content-Type": "application/json"
     },
-    body: JSON.stringify(team),
-  }).then((r) => r.json());
+    body: JSON.stringify(team)
+  }).then(r => r.json());
 }
 
 function deleteTeamRequest(id) {
@@ -26,10 +26,10 @@ function deleteTeamRequest(id) {
   return fetch("http://localhost:3000/teams-json/delete", {
     method: "DELETE",
     headers: {
-      "Content-Type": "application/json",
+      "Content-Type": "application/json"
     },
-    body: JSON.stringify({ id: id }),
-  }).then((r) => r.json());
+    body: JSON.stringify({ id: id })
+  }).then(r => r.json());
 }
 
 function getTeamAsHTML(team) {
@@ -66,11 +66,11 @@ function formSubmit(e) {
     promotion,
     members,
     name: projectName,
-    url: projectUrl,
+    url: projectUrl
   };
 
   console.info(team);
-  const r = createTeamRequest(team).then((status) => {
+  const r = createTeamRequest(team).then(status => {
     console.info("status", status);
     window.location.reload();
   });
@@ -78,7 +78,7 @@ function formSubmit(e) {
 
 function deleteTeam(id) {
   console.warn("delete", id);
-  deleteTeamRequest(id).then((status) => {
+  deleteTeamRequest(id).then(status => {
     console.info("status", status);
     if (status.success) {
       window.location.reload();
@@ -88,7 +88,7 @@ function deleteTeam(id) {
 
 function initEvents() {
   $("#editForm").addEventListener("submit", formSubmit);
-  $("table tbody").addEventListener("click", (e) => {
+  $("table tbody").addEventListener("click", e => {
     if (e.target.matches("a")) {
       const id = e.target.dataset.id;
       deleteTeam(id);
@@ -96,7 +96,7 @@ function initEvents() {
   });
 }
 
-getTeamsRequest().then((teams) => {
+getTeamsRequest().then(teams => {
   showTeams(teams);
 });
 
