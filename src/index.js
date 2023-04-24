@@ -2,7 +2,6 @@ let allTeams = [];
 var editId;
 
 function getTeamsRequest() {
-  // GET teams-json
   return fetch("http://localhost:3000/teams-json", {
     method: "GET",
     headers: {
@@ -14,7 +13,6 @@ function getTeamsRequest() {
 }
 
 function createTeamRequest(team) {
-  // POST teams-json/create
   return fetch("http://localhost:3000/teams-json/create", {
     method: "POST",
     headers: {
@@ -24,19 +22,26 @@ function createTeamRequest(team) {
   }).then(r => r.json());
 }
 
-function deleteTeamRequest(id) {
-  // DELETE teams-json/delete
+function deleteTeamRequest(id, successDelete) {
   return fetch("http://localhost:3000/teams-json/delete", {
     method: "DELETE",
     headers: {
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({ id: id })
-  }).then(r => r.json());
+    body: JSON.stringify({ id })
+  })
+    .then(r => r.json())
+    .then(status => {
+      console.warn("before remove ", status);
+      if (typeof successDelete === "function") {
+        const r = successDelete(status);
+        console.info("raspuns", r);
+      }
+      return status;
+    });
 }
 
 function updateTeamRequest(team) {
-  // PUT teams-json/update
   return fetch("http://localhost:3000/teams-json/update", {
     method: "PUT",
     headers: {
@@ -47,18 +52,17 @@ function updateTeamRequest(team) {
 }
 
 function getTeamAsHTML(team) {
-  return `<tr>
-          <td>${team.promotion}</td>
-          <td>${team.members}</td>
-          <td>${team.name}</td>
-          <td>${team.url}</td>
-          <td>
-            <a data-id="${team.id}">❌</a> 
-            <a data-id="${team.id}" class="link-btn remove-btn">✖</a>
-            <a data-id="${team.id}" class="link-btn edit-btn">&#9998;</a>
-          </td>
-        </tr>
-    `;
+  return `
+  <tr>
+    <td>${team.promotion}</td>
+    <td>${team.members}</td>
+    <td>${team.name}</td>
+    <td>${team.url}</td>
+    <td>
+      <a data-id="${team.id}" class="link-btn remove-btn">✖</a>
+      <a data-id="${team.id}" class="link-btn edit-btn">&#9998;</a>
+    </td>
+  </tr>`;
 }
 
 function showTeams(teams) {
@@ -72,33 +76,44 @@ function $(selector) {
 
 function formSubmit(e) {
   e.preventDefault();
-  console.warn("submit", e);
+  //console.warn("submit", e);
+
   const promotion = $("#promotion").value;
   const members = $("#members").value;
   const projectName = $("#name").value;
-  const projectUrl = $("#url").value;
+  const projectURL = $("#url").value;
 
   const team = {
     promotion,
     members,
     name: projectName,
-    url: projectUrl
+    url: projectURL
   };
+
   if (editId) {
     team.id = editId;
     console.warn("update...?", editId, team);
     updateTeamRequest(team).then(status => {
-      console.info("status", status);
+      console.info("updated", status);
       if (status.success) {
-        window.location.reload();
+        //window.location.reload();
+        loadTeams().then(() => {
+          $("#editForm").reset();
+        });
       }
     });
   } else {
-    console.info(team);
-    const r = createTeamRequest(team).then(status => {
-      console.info("status", status);
+    createTeamRequest(team).then(status => {
+      console.info("created", status);
       if (status.success) {
-        window.location.reload();
+        // window.location.reload();
+        // loadTeams(() => {
+        //   $("#editForm").reset();
+        // });
+        team.id = status.id;
+        allTeams.push(team);
+        showTeams(allTeams);
+        $("#editForm").reset();
       }
     });
   }
@@ -106,10 +121,14 @@ function formSubmit(e) {
 
 function deleteTeam(id) {
   console.warn("delete", id);
-  deleteTeamRequest(id).then(status => {
-    console.info("status", status);
+  deleteTeamRequest(id, status => {
+    console.info("callback success", status);
+    return id;
+  }).then(status => {
+    console.warn("status", status);
     if (status.success) {
-      window.location.reload();
+      //window.location.reload();
+      loadTeams();
     }
   });
 }
@@ -117,7 +136,7 @@ function deleteTeam(id) {
 function startEditTeam(id) {
   editId = id;
   const team = allTeams.find(team => team.id === id);
-  startEdit = true;
+
   $("#promotion").value = team.promotion;
   $("#members").value = team.members;
   $("#name").value = team.name;
@@ -129,8 +148,8 @@ function searchTeams(teams, search) {
   return teams.filter(team => {
     return (
       team.members.toLowerCase().includes(search) ||
-      team.promotion.toLowerCase().includes(search) ||
       team.name.toLowerCase().includes(search) ||
+      team.promotion.toLowerCase().includes(search) ||
       team.url.toLowerCase().includes(search)
     );
   });
@@ -144,6 +163,7 @@ function initEvents() {
   });
 
   $("#search").addEventListener("input", e => {
+    //const search = $("#search").value;
     const search = e.target.value;
     console.info("search", search);
     const teams = searchTeams(allTeams, search);
@@ -161,9 +181,18 @@ function initEvents() {
   });
 }
 
-getTeamsRequest().then(teams => {
-  allTeams = teams;
-  showTeams(teams);
-});
+function loadTeams(cb) {
+  return getTeamsRequest().then(teams => {
+    //console.warn(this, window);
+    allTeams = teams;
+    showTeams(teams);
+    if (typeof cb === "function") {
+      cb(teams);
+    }
+    return teams;
+  });
+}
+
+loadTeams();
 
 initEvents();
