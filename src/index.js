@@ -51,33 +51,85 @@ function updateTeamRequest(team) {
   }).then(r => r.json());
 }
 
-function getTeamAsHTML(team) {
+function getTeamAsHTML({ id, url, promotion, members, name }) {
+  let displayURL = url;
+  if (url.startsWith("https://")) {
+    displayURL = url.substring(8);
+  }
   return `
   <tr>
-    <td>${team.promotion}</td>
-    <td>${team.members}</td>
-    <td>${team.name}</td>
-    <td>${team.url}</td>
+    <td>${promotion}</td>
+    <td>${members}</td>
+    <td>${name}</td>
+    <td><a href="${url}" target="_blank">${displayURL}</a></td>
     <td>
-      <a data-id="${team.id}" class="link-btn remove-btn">✖</a>
-      <a data-id="${team.id}" class="link-btn edit-btn">&#9998;</a>
+      <a data-id="${id}" class="link-btn remove-btn">✖</a>
+      <a data-id="${id}" class="link-btn edit-btn">&#9998;</a>
     </td>
   </tr>`;
 }
 
+// TODO any chance to have this private?
+let previewDisplayedTeams = [];
 function showTeams(teams) {
+  if (teams === previewDisplayedTeams) {
+    console.info("same teams");
+    return false;
+  }
+  if (teams.length === previewDisplayedTeams.length) {
+    var eqContent = teams.every((t, i) => t === previewDisplayedTeams[i]);
+    if (eqContent) {
+      console.info("same content");
+      return false;
+    }
+  }
+
+  previewDisplayedTeams = teams;
   const html = teams.map(getTeamAsHTML);
   $("table tbody").innerHTML = html.join("");
+  return true;
 }
+
+// TODO remove
+window.showTeams = showTeams;
 
 function $(selector) {
   return document.querySelector(selector);
 }
 
-function formSubmit(e) {
+async function formSubmit(e) {
   e.preventDefault();
   //console.warn("submit", e);
 
+  const team = getFormValues();
+
+  if (editId) {
+    team.id = editId;
+    console.warn("update...?", editId, team);
+    const { success } = await updateTeamRequest(team);
+    if (success) {
+      allTeams = allTeams.map(t => {
+        if (t.id === team.id) {
+          return {
+            ...t, // old props (eg. createdBy, createdAt)
+            ...team
+          };
+        }
+        return t;
+      });
+    }
+  } else {
+    const { success, id } = await createTeamRequest(team);
+    if (success) {
+      team.id = id;
+      allTeams = [...allTeams, team];
+    }
+  }
+
+  showTeams(allTeams) && $("#editForm").reset();
+}
+
+function getFormValues() {
   const promotion = $("#promotion").value;
   const members = $("#members").value;
   const projectName = $("#name").value;
@@ -89,58 +141,29 @@ function formSubmit(e) {
     name: projectName,
     url: projectURL
   };
+  return team;
+}
 
-  if (editId) {
-    team.id = editId;
-    console.warn("update...?", editId, team);
-    updateTeamRequest(team).then(status => {
-      console.info("updated", status);
-      if (status.success) {
-        //window.location.reload();
-        loadTeams().then(() => {
-          $("#editForm").reset();
-        });
-      }
-    });
-  } else {
-    createTeamRequest(team).then(status => {
-      console.info("created", status);
-      if (status.success) {
-        // window.location.reload();
-        // loadTeams(() => {
-        //   $("#editForm").reset();
-        // });
-        team.id = status.id;
-        allTeams.push(team);
-        showTeams(allTeams);
-        $("#editForm").reset();
-      }
-    });
+function setFormValues({ promotion, members, name, url }) {
+  $("#promotion").value = promotion;
+  $("#members").value = members;
+  $("#name").value = name;
+  $("#url").value = url;
+}
+
+async function deleteTeam(id) {
+  console.warn("delete", id);
+  const { success } = await deleteTeamRequest(id);
+  if (success) {
+    allTeams = allTeams.filter(t => t.id !== id);
+    showTeams(allTeams);
   }
 }
 
-function deleteTeam(id) {
-  console.warn("delete", id);
-  deleteTeamRequest(id, status => {
-    console.info("callback success", status);
-    return id;
-  }).then(status => {
-    console.warn("status", status);
-    if (status.success) {
-      //window.location.reload();
-      loadTeams();
-    }
-  });
-}
-
-function startEditTeam(id) {
-  editId = id;
-  const team = allTeams.find(team => team.id === id);
-
-  $("#promotion").value = team.promotion;
-  $("#members").value = team.members;
-  $("#name").value = team.name;
-  $("#url").value = team.url;
+function startEditTeam(edit) {
+  editId = edit;
+  const team = allTeams.find(({ id }) => id === edit);
+  setFormValues(team);
 }
 
 function searchTeams(teams, search) {
@@ -181,18 +204,43 @@ function initEvents() {
   });
 }
 
-function loadTeams(cb) {
-  return getTeamsRequest().then(teams => {
-    //console.warn(this, window);
-    allTeams = teams;
-    showTeams(teams);
-    if (typeof cb === "function") {
-      cb(teams);
-    }
-    return teams;
+async function loadTeams(cb) {
+  const teams = await getTeamsRequest();
+  //console.warn(this, window);
+  allTeams = teams;
+  showTeams(teams);
+  if (typeof cb === "function") {
+    cb(teams);
+  }
+  return teams;
+}
+
+function sleep(ms) {
+  return new Promise(resolve => {
+    setTimeout(() => {
+      resolve();
+    }, ms);
   });
 }
 
-loadTeams();
+(async () => {
+  $("#editForm").classList.add("loading-mask");
+  await loadTeams();
+  await sleep(100);
+  $("#editForm").classList.remove("loading-mask");
+
+  console.info("1.start");
+
+  // sleep(4000).then(() => {
+  //   console.info("4.ready to do %o!", "training");
+  // });
+  await sleep(4000);
+  console.info("4.ready to do %o!", "training");
+
+  console.warn("2.after sleep");
+
+  sleep(5000);
+  console.info("3.await sleep");
+})();
 
 initEvents();
