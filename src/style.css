@@ -1,8 +1,7 @@
 table {
-  width: 100%;
   border-collapse: collapse;
+  width: 100%;
 }
-
 table th,
 table td {
   border: 1px solid #29a7e1;
@@ -12,10 +11,6 @@ table td {
 table th {
   background-color: #00aeef;
   color: white;
-}
-
-table tr {
-  background-color: aliceblue;
 }
 
 table tr:nth-child(even) {

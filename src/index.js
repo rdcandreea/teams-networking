@@ -1,5 +1,6 @@
-import { getTeamsRequest, updateTeamRequest } from "./requests";
-import { $, sleep } from "./utils";
+//import debounce from "lodash/debounce";
+import { getTeamsRequest, updateTeamRequest, createTeamRequest, deleteTeamRequest } from "./requests";
+import { $, $$, debounce, sleep } from "./utils";
 
 let allTeams = [];
 var editId;
@@ -11,6 +12,9 @@ function getTeamAsHTML({ id, url, promotion, members, name }) {
   }
   return `
   <tr>
+    <td>
+      <input type="checkbox" name="selected" value="${id}" />
+    </td>
     <td>${promotion}</td>
     <td>${members}</td>
     <td>${name}</td>
@@ -127,6 +131,35 @@ function searchTeams(teams, search) {
   });
 }
 
+async function removeSelected() {
+  const checkboxes = $$("#editForm input[name=selected]:checked");
+  const ids = [...checkboxesx].map(checkbox => checkbox.value);
+  $("#editForm").classList.add("loading-mask");
+  const promises = ids.map(id => deleteTeamRequest(id));
+  const results = await Promise.allSettled(promises);
+  await loadTeams();
+  $("#editForm").classList.remove("loading-mask");
+}
+
+async function initialLoad() {
+  await sleep(3000);
+  console.time("initialLoad");
+  // const userInfo = await loadTeams(); //getUserInfo();
+  // const userPreferences = await loadTeams(); //getUserPreferences();
+  // const subscription = await loadTeams(); // getSubscription();
+  console.warn("I am ready!!", userInfo, userPreferences, subscription);
+
+  const all = await Promise.allSettled([
+    loadTeams(), // getUserInfo();
+    loadTeams(), // getUserPreferences();
+    loadTeams() // getSubscription();
+  ]);
+
+  // console.warn("I am ready!!", all);
+
+  console.timeEnd("initialLoad");
+}
+
 function initEvents() {
   const form = $("#editForm");
   form.addEventListener("submit", formSubmit);
@@ -134,13 +167,18 @@ function initEvents() {
     editId = undefined;
   });
 
-  $("#search").addEventListener("input", e => {
-    //const search = $("#search").value;
-    const search = e.target.value;
-    console.info("search", search);
-    const teams = searchTeams(allTeams, search);
-    showTeams(teams);
-  });
+  $("#removeSelected").addEventListener("click", removeSelected);
+
+  $("#search").addEventListener(
+    "input",
+    debounce(function (e) {
+      //const search = $("#search").value;
+      const search = e.target.value;
+      console.info("search", search);
+      const teams = searchTeams(allTeams, search);
+      showTeams(teams);
+    }, 300)
+  );
 
   $("table tbody").addEventListener("click", e => {
     if (e.target.matches("a.remove-btn")) {
@@ -170,18 +208,20 @@ async function loadTeams(cb) {
   await sleep(100);
   $("#editForm").classList.remove("loading-mask");
 
-  console.info("1.start");
+  //initialLoad();
 
-  // sleep(4000).then(() => {
-  //   console.info("4.ready to do %o!", "training");
-  // });
-  await sleep(4000);
-  console.info("4.ready to do %o!", "training");
+  // console.info("1.start");
 
-  console.warn("2.after sleep");
+  // // sleep(4000).then(() => {
+  // //   console.info("4.ready to do %o!", "training");
+  // // });
+  // await sleep(4000);
+  // console.info("4.ready to do %o!", "training");
 
-  sleep(5000);
-  console.info("3.await sleep");
+  // console.warn("2.after sleep");
+
+  // sleep(5000);
+  // console.info("3.await sleep");
 })();
 
 initEvents();
